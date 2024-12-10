@@ -1,0 +1,36 @@
+{
+    "name": "ilaravelpro/ishop",
+    "description": "iLaravel iShop",
+    "keywords": ["laravel","auto pro", "shop", "order"],
+    "homepage": "https://ilaravel.iamir.net/packages/ishop",
+    "type": "Laravel package",
+    "license": "MIT",
+    "authors": [
+        {
+            "name" : "iamirnet",
+            "email" : "me@iamir.net"
+        }
+    ],
+    "autoload": {
+        "classmap": [
+            "src"
+        ],
+        "psr-4": {
+            "iLaravel\\iShop\\": "src/"
+        },
+        "files": [
+            "src/helpers.php"
+        ]
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "iLaravel\\iShop\\Providers\\AppServiceProvider",
+                "iLaravel\\iShop\\Providers\\RouteServiceProvider",
+                "iLaravel\\iShop\\Providers\\AuthServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
