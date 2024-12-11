@@ -247,7 +247,7 @@ class Order extends \iLaravel\Core\iApp\Model
 
     public static function redirect_uri($transaction, $response, $provider, $order = null)
     {
-        return redirect($response['status'] ? (route('account.orders') . '/' . $order->serial) : (route('shop.checkout') . "?payment=" . $transaction->serial));
+        return $response['status'] ? (route('account.orders') . '/' . $order->serial) : (route('shop.checkout') . "?payment=" . $transaction->serial);
     }
 
     public function rules($request, $action, $arg1 = null, $arg2 = null)
