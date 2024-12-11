@@ -9,6 +9,8 @@
 
 namespace iLaravel\iShop\iApp;
 
+use iLaravel\iPayment\iApp\Payment;
+use iLaravel\iShipping\iApp\ShippingMethod;
 use Morilog\Jalali\Jalalian;
 
 class Order extends \iLaravel\Core\iApp\Model
@@ -72,7 +74,7 @@ class Order extends \iLaravel\Core\iApp\Model
 
     public function items()
     {
-        return $this->hasMany(imodal('OrderItem'), 'order_id');
+        return $this->hasMany(imodal(ucfirst(static::$bname) . 'Item'), static::$bname . '_id');
     }
 
     public function payments()
@@ -179,7 +181,7 @@ class Order extends \iLaravel\Core\iApp\Model
         }
 
         if (!$this->payment_gateway) {
-            $this->payment_gateway_id = ShopGateway::where('status', 'active')->first()->id;
+            $this->payment_gateway_id = Payment::where('status', 'active')->first()->id;
         }
         $this->shipping_total = $this->shipping_method?->service?->amount($this, $this->shipping, $this->weight_total) ?: 0;
         $this->invoice_total = $this->products_total + $this->shipping_total;
@@ -203,14 +205,51 @@ class Order extends \iLaravel\Core\iApp\Model
     public function payment_callback($transaction, &$response, $provider)
     {
         if ($response['status']) {
-            $this->status = 'processing';
-            $this->payment_status = 'payed';
-            $this->shipping_status = 'processing';
-            $this->save();
-        }
+            if (static::$bname == 'order') {
+                $this->status = 'processing';
+                $this->payment_status = 'payed';
+                $this->shipping_status = 'processing';
+                $this->save();
+                $response['redirect_uri'] = static::redirect_uri($transaction, $response, $provider, $this);
+            } else {
+                $order = new (imodal('Order'));
+                foreach ($order::getTableColumns() as $tableColumn)
+                    if (!in_array($tableColumn, ['id', 'created_at', 'updated_at']))
+                        $order->$tableColumn = $this->$tableColumn;
+                $order->payment_status = 'payed';
+                $order->shipping_status = 'processing';
+                $order->status = 'processing';
+                $order->save();
+                $order_item_model = imodal('OrderItem');
+                $order_item_columns = $order_item_model::getTableColumns();
+                foreach ($this->items as $citem) {
+                    $item = [];
+                    foreach ($order_item_columns as $tableColumn)
+                        if (!in_array($tableColumn, ['id', 'order_id', 'created_at', 'updated_at']))
+                            if ($citem[$tableColumn] !== null) $item[$tableColumn] = $citem[$tableColumn];
+
+                    $order->items()->create($item);
+                }
+                try {
+                    if (@$order->creator->mobile->text)
+                        isms_send("modals.orders.status.payed", @$order->creator->mobile->text, [
+                            'number' => @$order->number,
+                        ]);
+                } catch (\Throwable $exception) {
+                }
+                $transaction->update(['model' => 'Order', 'model_id' => $order->id]);
+                $response['redirect_uri'] = static::redirect_uri($transaction, $response, $provider, $order);
+            }
+        }else
+            $response['redirect_uri'] = static::redirect_uri($transaction, $response, $provider);
         $response['redirect_method'] = 'GET';
-        $response['redirect_uri'] = asset('my' . $this->type);
     }
+
+    public static function redirect_uri($transaction, $response, $provider, $order = null)
+    {
+        return redirect($response['status'] ? (route('account.orders') . '/' . $order->serial) : (route('shop.checkout') . "?payment=" . $transaction->serial));
+    }
+
     public function rules($request, $action, $arg1 = null, $arg2 = null)
     {
         $arg1 = $arg1 instanceof static ? $arg1 : (is_integer($arg1) ? static::find($arg1) : (is_string($arg1) ? static::findBySerial($arg1) : $arg1));
