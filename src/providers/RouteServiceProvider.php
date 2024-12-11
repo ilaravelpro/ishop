@@ -24,7 +24,6 @@ class RouteServiceProvider extends \Illuminate\Foundation\Support\Providers\Rout
     public function map(Router $router)
     {
         $this->apiRoutes($router);
-        $this->webRoutes($router);
     }
 
     public function apiRoutes(Router $router)
@@ -35,17 +34,6 @@ class RouteServiceProvider extends \Illuminate\Foundation\Support\Providers\Rout
             'middleware' => 'api'
         ], function ($router) {
             require_once(ishop_path('routes/api.php'));
-        });
-    }
-
-    public function webRoutes(Router $router)
-    {
-        $router->group([
-            'namespace' => '\iLaravel\iShop\iApp\Http\Controllers\WEB',
-            'prefix' => '',
-            'middleware' => 'web'
-        ], function ($router) {
-            require_once(ishop_path('routes/web.php'));
         });
     }
 }

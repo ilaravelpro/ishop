@@ -9,8 +9,6 @@
 
 namespace iLaravel\iShop\Providers;
 
-use Illuminate\Support\Facades\View;
-
 class AppServiceProvider extends \Illuminate\Support\ServiceProvider
 {
     public function boot()
@@ -22,7 +20,6 @@ class AppServiceProvider extends \Illuminate\Support\ServiceProvider
 
         $this->mergeConfigFrom(ishop_path('config/shop.php'), 'ilaravel.main.ishop');
 
-        View::addLocation(ishop_path('resources/views'));
         $this->app->singleton('current_cart', function(){
             return auth()->user()->current_cart?: auth()->user()->carts()->create(['status' => 'filling', 'warehouse_id' => @imodal('Warehouse')::where('is_default', 1)->first()->id?:1]);
         });

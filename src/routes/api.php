@@ -8,14 +8,13 @@
  */
 
 Route::namespace('v1')->prefix('v1')->middleware('auth:api')->group(function () {
+    Route::apiResource('shop', 'ShopController', ['as' => 'api']);
     Route::get('orders/statics', 'OrderController@statics')->name('api.orders.statics');
     Route::apiResource('orders', 'OrderController', ['as' => 'api']);
     Route::post('orders/{record}/cancel', 'OrderController@cancel')->name('api.orders.cancel');
     Route::post('orders/{record}/send_sms', 'OrderController@send_sms')->name('api.orders.send_sms');
     Route::apiResource('orders/{record}/items', 'OrderItemController', ['as' => 'api']);
-    Route::apiResource('order_payments', 'OrderPaymentController', ['as' => 'api']);
-    Route::apiResource('shipments', 'ShipmentController', ['as' => 'api']);
-    Route::post('shipments/{record}/send_sms', 'ShipmentController@send_sms')->name('api.shipments.send_sms');
+
     Route::apiResource('carts', 'CartController', ['as' => 'api']);
     Route::post('carts/{record}/append/{product}', 'CartController@append')->name('api.carts.append');
     Route::post('carts/{record}/decrease/{index}', 'CartController@decrease')->name('api.carts.decrease');
@@ -27,12 +26,5 @@ Route::namespace('v1')->prefix('v1')->middleware('auth:api')->group(function () 
     Route::post('carts/{record}/shipping', 'CartController@shipping')->name('api.carts.shipping');
     Route::post('carts/{record}/address', 'CartController@address')->name('api.carts.address');
     Route::post('carts/{record}/pay', 'CartController@toPay')->name('api.carts.pay');
-    Route::apiResource('shipping_methods', 'ShippingMethodController', ['as' => 'api']);
-    Route::apiResource('shop', 'ShopController', ['as' => 'api']);
-    Route::apiResource('shop_gateways', 'ShopGatewayController', ['as' => 'api']);
-    Route::apiResource('discounts', 'DiscountController', ['as' => 'api']);
-});
-Route::namespace('v1')->prefix('v1')->group(function () {
-    Route::get('payment/providers', 'ShopGatewayController@providers', ['as' => 'api.shop_gateways.providers']);
-    Route::get('shipping/providers', 'ShippingMethodController@providers', ['as' => 'api.shipping_methods.providers']);
+    Route::apiResource('warehouses', 'WarehouseController', ['as' => 'api']);
 });

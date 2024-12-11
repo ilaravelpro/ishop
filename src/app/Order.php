@@ -57,8 +57,9 @@ class Order extends \iLaravel\Core\iApp\Model
 
     public function payment_gateway()
     {
-        return $this->belongsTo(imodal('ShopGateway'), 'payment_gateway_id');
+        return $this->belongsTo(imodal('Payment'), 'payment_gateway_id');
     }
+
     public function shipping_method()
     {
         return $this->belongsTo(imodal('ShippingMethod'), 'shipping_method_id');
@@ -76,7 +77,7 @@ class Order extends \iLaravel\Core\iApp\Model
 
     public function payments()
     {
-        return $this->hasMany(imodal('OrderPayment'), 'order_id');
+        return $this->hasMany(imodal('PaymentTransaction'), 'model_id')->where('model', ucfirst(static::$bname));
     }
 
     public function shipments()
@@ -96,18 +97,18 @@ class Order extends \iLaravel\Core\iApp\Model
     public function add($product, $price, $count = 1)
     {
         if ($product)
-            if ($price){
+            if ($price) {
                 if ($price->product_id == $product->id) {
                     $item = $this->items->where('product_id', $product->id)->where('price_id', $price->id)->first() ?:
                         $this->items()->updateOrCreate(['product_id' => $product->id, 'price_id' => $price->id], ['model' => $product->model, 'model_id' => $product->model_id, 'status' => 'added']);
                     $item->count += $count ?: 1;
                     $item->count = $item->count < $product->quantity_min && $product->quantity_min ? $product->quantity_min : ($item->count >= $product->quantity_max && $product->quantity_max ? $product->quantity_max : $item->count);
                     return (object)['status' => true, 'data' => $item];
-                }else return (object)['status' => false, 'data' => 'The price sent does not match the selected product.'];
+                } else return (object)['status' => false, 'data' => 'The price sent does not match the selected product.'];
             } else
-                return (object)['status' => false, 'data' => 'قیمت مورد نظر در سبدخرید یافت نشد.'];
+                return (object)['status' => false, 'data' => 'The desired price was not found in the shopping cart.'];
         else
-            return (object)['status' => false, 'data' => 'محصول مورد نظر در سبدخرید یافت نشد.'];
+            return (object)['status' => false, 'data' => 'The desired product was not found in the shopping cart.'];
     }
 
     public function actionItem($action, $arg, $arg2 = 1, $arg3 = 0)
@@ -115,42 +116,42 @@ class Order extends \iLaravel\Core\iApp\Model
         $modelProduct = imodal('Product');
         switch ($action) {
             case 'append':
-                $result = $this->add($product = @$modelProduct::findBySerial($arg), @$product->prices->values()->get($arg3?:0), $arg2?:1);
+                $result = $this->add($product = @$modelProduct::findBySerial($arg), @$product->prices->values()->get($arg3 ?: 0), $arg2 ?: 1);
                 if (@$result->status) $result->data->change_stock($result->data->count, $result->data->product_id, $result->data->price_id);
                 break;
             case 'decrease':
-                if ($item = is_numeric($arg) ? @$this->items->get($arg?:0) : @$this->items->first()->findBySerial($arg)) {
+                if ($item = is_numeric($arg) ? @$this->items->get($arg ?: 0) : @$this->items->first()->findBySerial($arg)) {
                     $item->change_stock($item->count - 1, $item->product_id, $item->price_id);
                     $result = $item->decrease($arg2 ?: 1);
-                }
-                else
-                    return (object)['status' => false, 'data' => 'محصول مورد نظر در سبدخرید یافت نشد.'];
+                } else
+                    return (object)['status' => false, 'data' => 'The desired product was not found in the shopping cart.'];
                 break;
             case 'increase':
-                if ($item = is_numeric($arg) ? @$this->items->get($arg?:0) : @$this->items->first()->findBySerial($arg)) {
+                if ($item = is_numeric($arg) ? @$this->items->get($arg ?: 0) : @$this->items->first()->findBySerial($arg)) {
                     $item->change_stock($item->count + 1, $item->product_id, $item->price_id);
                     $result = $item->increase($arg2 ?: 1);
-                }else
-                    return (object)['status' => false, 'data' => 'محصول مورد نظر در سبدخرید یافت نشد.'];
+                } else
+                    return (object)['status' => false, 'data' => 'The desired product was not found in the shopping cart.'];
                 break;
             case 'remove':
-                if ($item = is_numeric($arg) ? @$this->items->get($arg?:0) : @$this->items->first()->findBySerial($arg)) {
+                if ($item = is_numeric($arg) ? @$this->items->get($arg ?: 0) : @$this->items->first()->findBySerial($arg)) {
                     $item->delete();
                     $item->parent->calc();
                     $item->parent->save();
                 } else
-                    return (object)['status' => false, 'data' => 'محصول مورد نظر در سبدخرید یافت نشد.'];
+                    return (object)['status' => false, 'data' => 'The desired product was not found in the shopping cart.'];
                 break;
         }
         if (@$result->status && $action !== 'remove') {
             $result->data->calc();
             $result->data->save();
             $item = $result->data;
-        }elseif (@$result->status === false) return  $result;
+        } elseif (@$result->status === false) return $result;
         return (object)['status' => true, 'data' => $item];
     }
 
-    public function calc() {
+    public function calc()
+    {
         $this->size_x = $this->items->pluck('size_x')->sum();
         $this->size_y = $this->items->pluck('size_y')->sum();
         $this->size_z = $this->items->pluck('size_z')->sum();
@@ -164,21 +165,23 @@ class Order extends \iLaravel\Core\iApp\Model
                 $this->shipping_id = $this->creator->addresses->sortByDesc('created_at')->first()->id;
             if (!$this->billing_id)
                 $this->billing_id = $this->shipping_id;
-        }catch (\Throwable $exception){}
+        } catch (\Throwable $exception) {
+        }
         try {
             if (!$this->shipping_method) {
                 $shipping_method = $this->shipping ? ShippingMethod::with('cities')->where('status', 'active')->get()->sortByDesc('created_at')->filter(function ($item) {
                     return in_array($this->shipping->city_id, $item->cities->pluck('id')->toArray());
                 })->first() : false;
-                $shipping_method = $shipping_method ? : ShippingMethod::withCount('cities')->where('status', 'active')->having('cities_count', '>', 0)->first();
+                $shipping_method = $shipping_method ?: ShippingMethod::withCount('cities')->where('status', 'active')->having('cities_count', '>', 0)->first();
                 $this->shipping_method_id = $shipping_method->id;
             }
-        }catch (\Throwable $exception){}
+        } catch (\Throwable $exception) {
+        }
 
         if (!$this->payment_gateway) {
             $this->payment_gateway_id = ShopGateway::where('status', 'active')->first()->id;
         }
-        $this->shipping_total = $this->shipping_method?->service?->amount($this, $this->shipping, $this->weight_total)?:0;
+        $this->shipping_total = $this->shipping_method?->service?->amount($this, $this->shipping, $this->weight_total) ?: 0;
         $this->invoice_total = $this->products_total + $this->shipping_total;
         $now = now()->format('Y-m-d H:i:S');
         if ($this->invoice_total > 0 && $this->discount &&
@@ -189,7 +192,7 @@ class Order extends \iLaravel\Core\iApp\Model
         )
             $this->discount_code = $this->discount->type == 'percent' ? ($this->discount->value ? (($this->invoice_total * $this->discount->value) / 100) : 0) : $this->discount->value;
         else $this->discount_code = 0;
-        $this->discount_total = $this->discount_price + $this->discount_code +  $this->discount_order + $this->discount_tax;
+        $this->discount_total = $this->discount_price + $this->discount_code + $this->discount_order + $this->discount_tax;
         $this->discount_total = iproduct_round_currency($this->discount_total >= $this->invoice_total ? $this->discount_total * 0.8 : $this->discount_total);
         $this->invoice_total = $this->invoice_total - $this->discount_total;
         $this->tax_total = $this->items->count() ? iproduct_round_currency($this->invoice_total * 0.09, 100, 'ceil') : 0;
@@ -197,11 +200,22 @@ class Order extends \iLaravel\Core\iApp\Model
         $this->save();
     }
 
-    public function rules($request, $action, $arg1 = null, $arg2 = null) {
+    public function payment_callback($transaction, &$response, $provider)
+    {
+        if ($response['status']) {
+            $this->status = 'processing';
+            $this->payment_status = 'payed';
+            $this->shipping_status = 'processing';
+            $this->save();
+        }
+        $response['redirect_method'] = 'GET';
+        $response['redirect_uri'] = asset('my' . $this->type);
+    }
+    public function rules($request, $action, $arg1 = null, $arg2 = null)
+    {
         $arg1 = $arg1 instanceof static ? $arg1 : (is_integer($arg1) ? static::find($arg1) : (is_string($arg1) ? static::findBySerial($arg1) : $arg1));
         $rules = [];
-        $additionalRules = [
-        ];
+        $additionalRules = [];
         switch ($action) {
             case 'store':
             case 'update':
@@ -229,7 +243,7 @@ class Order extends \iLaravel\Core\iApp\Model
                     'discount_total' => "required|string",*/
                     'payed_at' => "nullable|date_format:Y-m-d H:i:s",
                     'sent_at' => "nullable|date_format:Y-m-d H:i:s",
-                    'status' => 'nullable|in:' . join( ',', iconfig('status.orders', iconfig('status.global'))),
+                    'status' => 'nullable|in:' . join(',', iconfig('status.orders', iconfig('status.global'))),
                 ]);
                 break;
             case 'additional':

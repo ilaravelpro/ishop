@@ -83,20 +83,19 @@ class OrderItem extends \iLaravel\Core\iApp\Model
     {
         $this->count -= ($count?:1);
         if ($this->count < 1)
-            return (object)['status' => false, 'data' => "تعداد بیشتر از این مقدار نمی تواند کاهش یابد."];
+            return (object)['status' => false, 'data' => "The number cannot be reduced by more than this amount."];
         else if ($this->count < $this->product->quantity_min)
-            return (object)['status' => false, 'data' => "حداقل تعداد سفارش برای این محصول " . $this->product->quantity_min . " عدد است."];
+            return (object)['status' => false, 'data' => sprintf("The minimum order quantity for this product is %s.", $this->product->quantity_min)];
         else
             return (object)['status' => true, 'data' => $this];
     }
     public function increase($count = 1)
     {
         if (($this->count += ($count?:1)) < $this->product->quantity_min)
-            return (object)['status' => false, 'data' => "حداکثر تعداد سفارش برای این محصول " . $this->product->quantity_max . " عدد است."];
+            return (object)['status' => false, 'data' => sprintf("The maximum order quantity for this product is %s.", $this->product->quantity_max)];
         else
             return (object)['status' => true, 'data' => $this];
     }
-
 
     public function change_stock($count, $product_id, $price_id) {
         $count = $count - $this->count;

@@ -9,4 +9,6 @@
 
 namespace iLaravel\iShop\iApp\Http\Controllers\API\v1;
 
-class DiscountController extends \iLaravel\Core\iApp\Http\Controllers\API\ApiController {}
+class WarehouseController extends \iLaravel\Core\iApp\Http\Controllers\API\ApiController
+{
+}

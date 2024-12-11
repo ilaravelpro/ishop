@@ -18,26 +18,22 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('shipping_configs', function (Blueprint $table) {
+        Schema::create('warehouses', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->bigInteger('creator_id')->nullable()->unsigned();
             $table->foreign('creator_id')->references('id')->on('users')->onDelete('cascade');
-            $table->bigInteger('method_id')->nullable()->unsigned();
-            $table->foreign('method_id')->references('id')->on('shipping_methods')->onDelete('cascade');
+            $table->bigInteger('address_id')->nullable()->unsigned();
+            $table->foreign('address_id')->references('id')->on('addresses')->onDelete('cascade');
             $table->string('title')->nullable();
-            $table->string('type')->nullable()->default('value');
-            $table->bigInteger('price_first')->nullable();
-            $table->bigInteger('price_km')->nullable();
-            $table->bigInteger('price_min')->nullable();
-            $table->bigInteger('price_max')->nullable();
-            $table->bigInteger('weight_min')->nullable();
-            $table->bigInteger('weight_max')->nullable();
-            $table->string('price_currency')->nullable()->default('IRT');
-            $table->boolean('is_all_cities')->default(0);
+            $table->string('template')->nullable();
+            $table->text('summary')->nullable();
+            $table->longText('content')->nullable();
+            $table->boolean('is_default')->default(0);
             $table->integer('order')->default(0);
             $table->string('local')->nullable();
             $table->string('status')->default('active');
-            $table->longText('meta')->nullable();
+            $table->timestamp('approved_at')->nullable();
+            $table->timestamp('published_at')->nullable();
             $table->timestamps();
         });
     }
@@ -49,6 +45,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('shipping_configs');
+        Schema::dropIfExists('warehouses');
     }
 };
