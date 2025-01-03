@@ -26,5 +26,4 @@ Route::namespace('v1')->prefix('v1')->middleware('auth:api')->group(function () 
     Route::post('carts/{record}/shipping', 'CartController@shipping')->name('api.carts.shipping');
     Route::post('carts/{record}/address', 'CartController@address')->name('api.carts.address');
     Route::post('carts/{record}/pay', 'CartController@toPay')->name('api.carts.pay');
-    Route::apiResource('warehouses', 'WarehouseController', ['as' => 'api']);
 });

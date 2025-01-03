@@ -49,7 +49,7 @@ class Order extends \iLaravel\Core\iApp\Model
 
     public function shipping()
     {
-        return $this->belongsTo(imodal('Address'), 'shipping_id');
+        return ($model = imodal('ShippingMethod')) ? $this->belongsTo(imodal('Address'), 'shipping_id') : null;
     }
 
     public function billing()
@@ -64,12 +64,12 @@ class Order extends \iLaravel\Core\iApp\Model
 
     public function shipping_method()
     {
-        return $this->belongsTo(imodal('ShippingMethod'), 'shipping_method_id');
+        return ($model = imodal('ShippingMethod')) ? $this->belongsTo($model, 'shipping_method_id') : null;
     }
 
     public function warehouse()
     {
-        return $this->belongsTo(imodal('Warehouse'), 'warehouse_id');
+        return ($model = imodal('Warehouse')) ? $this->belongsTo($model) : null;
     }
 
     public function items()
@@ -154,23 +154,29 @@ class Order extends \iLaravel\Core\iApp\Model
 
     public function calc()
     {
-        $this->size_x = $this->items->pluck('size_x')->sum();
-        $this->size_y = $this->items->pluck('size_y')->sum();
-        $this->size_z = $this->items->pluck('size_z')->sum();
-        $this->weight_first = $this->items->pluck('weight')->sum();
-        $this->weight_box = ceil($this->weight_first * 0.05);
-        $this->weight_total = $this->weight_first + $this->weight_box;
+        $has_shipping = imodal('ShippingMethod');
+        if (imodal('Warehouse')) {
+            $this->size_x = $this->items->pluck('size_x')->sum();
+            $this->size_y = $this->items->pluck('size_y')->sum();
+            $this->size_z = $this->items->pluck('size_z')->sum();
+            $this->weight_first = $this->items->pluck('weight')->sum();
+            $this->weight_box = ceil($this->weight_first * 0.05);
+            $this->weight_total = $this->weight_first + $this->weight_box;
+        }
+
         $this->products_total = $this->items->pluck('price_total')->sum();
         $this->discount_price = $this->items->pluck('price_discount')->sum();
         try {
-            if (!$this->shipping_id)
-                $this->shipping_id = $this->creator->addresses->sortByDesc('created_at')->first()->id;
+            if ($has_shipping) {
+                if (!$this->shipping_id)
+                    $this->shipping_id = $this->creator->addresses->sortByDesc('created_at')->first()->id;
+            }
             if (!$this->billing_id)
                 $this->billing_id = $this->shipping_id;
         } catch (\Throwable $exception) {
         }
         try {
-            if (!$this->shipping_method) {
+            if ($has_shipping && !$this->shipping_method) {
                 $shipping_method = $this->shipping ? ShippingMethod::with('cities')->where('status', 'active')->get()->sortByDesc('created_at')->filter(function ($item) {
                     return in_array($this->shipping->city_id, $item->cities->pluck('id')->toArray());
                 })->first() : false;
@@ -183,8 +189,14 @@ class Order extends \iLaravel\Core\iApp\Model
         if (!$this->payment_gateway) {
             $this->payment_gateway_id = Payment::where('status', 'active')->first()->id;
         }
-        $this->shipping_total = $this->shipping_method?->service?->amount($this, $this->shipping, $this->weight_total) ?: 0;
-        $this->invoice_total = $this->products_total + $this->shipping_total;
+        try {
+            if ($has_shipping) {
+                $this->shipping_total = $this->shipping_method?->service?->amount($this, $this->shipping, $this->weight_total) ?: 0;
+                $this->invoice_total = $this->products_total + $this->shipping_total;
+            }else $this->invoice_total = $this->products_total;
+        }catch (\Throwable $exception) {
+            $this->invoice_total = $this->products_total;
+        }
         $now = now()->format('Y-m-d H:i:S');
         if ($this->invoice_total > 0 && $this->discount &&
             ($this->discount->price_min > 0 ? $this->discount->price_min > $this->invoice_total : true) &&
@@ -240,7 +252,7 @@ class Order extends \iLaravel\Core\iApp\Model
                 $transaction->update(['model' => 'Order', 'model_id' => $order->id]);
                 $response['redirect_uri'] = static::redirect_uri($transaction, $response, $provider, $order);
             }
-        }else
+        } else
             $response['redirect_uri'] = static::redirect_uri($transaction, $response, $provider);
         $response['redirect_method'] = 'GET';
     }
@@ -259,12 +271,9 @@ class Order extends \iLaravel\Core\iApp\Model
             case 'store':
             case 'update':
                 $rules = array_merge($rules, [
-                    'warehouse_id' => "required|exists:warehouses,id",
-                    'shipping_id' => "required|exists:addresses,id",
                     'billing_id' => "required|exists:addresses,id",
                     'discount_id' => "nullable|exists:discounts,id",
                     'payment_gateway_id' => "nullable|exists:shop_gateways,id",
-                    'shipping_method_id' => "nullable|exists:shipping_methods,id",
                     /*'number' => "required|string",
                     'weight_first' => "required|string",
                     'weight_box' => "required|string",
@@ -284,6 +293,12 @@ class Order extends \iLaravel\Core\iApp\Model
                     'sent_at' => "nullable|date_format:Y-m-d H:i:s",
                     'status' => 'nullable|in:' . join(',', iconfig('status.orders', iconfig('status.global'))),
                 ]);
+                if (imodal('Warehouse'))
+                    $rules['warehouse_id'] = "required|exists:warehouses,id";
+                if (imodal('ShippingMethod')) {
+                    $rules['shipping_id'] = "required|exists:addresses,id";
+                    $rules['shipping_method_id'] = "nullable|exists:shipping_methods,id";
+                }
                 break;
             case 'additional':
                 $rules = $additionalRules;

@@ -61,10 +61,13 @@ class OrderItem extends \iLaravel\Core\iApp\Model
     }
 
     public function calc() {
-        $this->size_x = $this->product->size_x;
-        $this->size_y = $this->product->size_y;
-        $this->size_z = $this->product->size_z;
-        $this->weight = $this->product->weight;
+        if (imodal('Warehouse')) {
+            $this->size_x = $this->product->size_x;
+            $this->size_y = $this->product->size_y;
+            $this->size_z = $this->product->size_z;
+            $this->weight = $this->product->weight;
+        }
+
         $this->title = $this->product->title;
         $this->type = $this->product->type;
         $this->model = $this->product->model;

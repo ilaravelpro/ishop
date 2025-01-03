@@ -38,25 +38,30 @@ trait ActionItem
     public function shipping(Request $request, $record)
     {
         $shipping_model = imodal('ShippingMethod');
-        if ($record = $this->model::findBySerial($record)) {
-            if ($shipping = $shipping_model::findBySerial($request->shipping)) {
-                $record->shipping_method_id = $shipping->id;
-                $this->statusMessage = 'The sending method was successfully applied.';
-                $record->calc();
-                $record->save();
+        if ($shipping_model) {
+            if ($record = $this->model::findBySerial($record)) {
+                if ($shipping = $shipping_model::findBySerial($request->shipping)) {
+                    $record->shipping_method_id = $shipping->id;
+                    $this->statusMessage = 'The sending method was successfully applied.';
+                    $record->calc();
+                    $record->save();
+                } else
+                    throw new iException('The sending method is invalid.');
             } else
-                throw new iException('The sending method is invalid.');
+                throw new iException('No information found.');
         } else
-            throw new iException('No information found.');
+            throw new iException('Product shipping system not found.');
         return $this->_show($request, $record);
     }
 
     public function address(Request $request, $record)
     {
         $address_model = imodal('Address');
+        $shipping_model = imodal('ShippingMethod');
+        if ($request->type == 'shipping' && !$shipping_model) throw new iException('Product shipping system not found.');
         if ($record = $this->model::findBySerial($record)) {
             if ($address = $address_model::findBySerial($request->address)) {
-                if ($request->type == 'shipping' && $record->shipping_id == $record->billing_id) {
+                if ($shipping_model && $request->type == 'shipping' && $record->shipping_id == $record->billing_id) {
                     $record->billing_id = $address->id;
                     $record->creator->update(["billing_id" => $address->id]);
                 }
