@@ -33,10 +33,6 @@ return new class extends Migration
             $table->bigInteger('model_id')->nullable()->unsigned();
             $table->string('title')->nullable();
             $table->string('type')->nullable();
-            $table->bigInteger('weight')->nullable();
-            $table->bigInteger('size_x')->nullable();
-            $table->bigInteger('size_y')->nullable();
-            $table->bigInteger('size_z')->nullable();
             $table->bigInteger('count')->nullable();
             $table->bigInteger('price_first')->nullable();
             $table->bigInteger('price_single')->nullable();

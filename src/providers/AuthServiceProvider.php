@@ -20,6 +20,5 @@ class AuthServiceProvider extends \Illuminate\Foundation\Support\Providers\AuthS
         Gate::resource('carts', 'iLaravel\Core\Vendor\iRole\iRolePolicy');
         Gate::define('carts.append', 'iLaravel\Core\Vendor\iRole\iRolePolicy@show');
         Gate::resource('shop', 'iLaravel\Core\Vendor\iRole\iRolePolicy');
-        Gate::resource('warehouses', 'iLaravel\Core\Vendor\iRole\iRolePolicy');
     }
 }
